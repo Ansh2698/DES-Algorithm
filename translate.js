@@ -4,6 +4,7 @@ $(document).ready(function () {
             this.All_round_Key=[];
             this.Combines=[];
             this.rounds=[];
+            this.Round_keys_hex=[];
         }
         str2hex(string,Bit){//code snippet to convert input string to hexadecimal form
             var hex='';
@@ -13,7 +14,6 @@ $(document).ready(function () {
             while(hex.length%(Bit/4)){
                 hex=hex+'0';
             }
-            console.log(hex);
             return hex;
         }
         hex2bin(string){
@@ -442,6 +442,7 @@ $(document).ready(function () {
             return st;
         }
         Encrypt(string,key,Rounds,Bit){
+            this.Round_keys_hex=[];
             this.All_round_Key=[];//All_round_key array stores the subkeys generated at each round
             this.Combines=[];//Combines array store output after every round
             //plaintext converted from hexadecimal to binary and stored in variable txt_Bit after Initial_permutation function call
@@ -464,6 +465,7 @@ $(document).ready(function () {
                 D=this.Left_Circular_Shift(D,shift_table[i]);//D after i_th left circular shift according to i_th value in the shift_table
                 var k=this.Purmuted_Choice2(C+D,Bit);//k after Permuted_Choice2 on C+D
                 this.All_round_Key.push(k);//the round key of the i_th round is stored in All_round_key array
+                this.Round_keys_hex.push(this.bin2hex(k));
                 var R_prev=R;//This R is stored in R_prev for L of next round
                 R=this.Expansion_Block(R,Bit);// R undergoes expansion
                 R=this.XOr(R,k);// R and k is XORed
@@ -503,6 +505,8 @@ $(document).ready(function () {
     var translate=new Translate();//translate is an object of Translate class
     $("#p_t1").keydown(function () {//when you click at the plaintext box, 
         $("#c_t1").val("");//ciphertext box becomes NULL
+        $("#rnd_keys").val("");
+        $("#rnd_keys_bin").val("");
     });
     $("#c_t1").keydown(function () {//when you click at ciphertext box, 
         $("#p_t1").val("");//plaintext box becomes NULL
@@ -515,40 +519,47 @@ $(document).ready(function () {
         var Bit = $("#Block :selected").val();//variable Bit stores the block length selected
         var Decrypted = translate.Encrypt(Encryp[0], key, Rounds, Bit);//variable Decrypted stores the final ciphertext
         $("#c_t1").val(Decrypted);//element with id c_t1 stores resultant ciphertext
-        translate.rounds.push(translate.Combines);//??
+        var subkeys1=translate.All_round_Key.join("\n");//to store the subkeys of each round
+        var subkeys2=translate.Round_keys_hex.join("\n");
+        $("#rnd_keys").val(subkeys2);//element with id c_t1 stores all subkeys
+        $("#rnd_keys_bin").val(subkeys1);
+        translate.rounds.push(translate.Combines);//Storing all the Encrypted text at each round
         if(Encryp.length>0){
             translate.Encrypt(Encryp[1], key, Rounds, Bit);
             translate.rounds.push(translate.Combines);
         }
         var datap = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         var datac = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        var data = translate.str2hex(Encryp[0]);
+        var data = translate.str2hex(Encryp[0]);//Converting the String to hexadecimal Form
         if(data.length>16){
-            data=data.substr(0,16);
+            data=data.substr(0,16);//Using the First 16 hexadecimal Value from the Plain Input text
         }
-        for (var i = 0; i < data.length; i++) {
-            if (data[i].charCodeAt(0) >= 97) datap[data[i].charCodeAt(0) - 87]++;
+        for (var i = 0; i < data.length; i++) {//Taking the Ascii Difference between the intialised datap corresponding to the 
+            if (data[i].charCodeAt(0) >= 97) datap[data[i].charCodeAt(0) - 87]++;//chosen First 16  hexadecimal and storing it in datap array
             else datap[data[i].charCodeAt(0) - 48]++;
         }
         data = Decrypted;
         if(data.length>16){
             data=data.substr(0,16);
         }
-        for (var i = 0; i < data.length; i++) {
+        for (var i = 0; i < data.length; i++) {//Same as above with the Decrypted text value and storing it in the datac
             if (data[i].charCodeAt(0) >= 97) datac[data[i].charCodeAt(0) - 87]++;
             else datac[data[i].charCodeAt(0) - 48]++;
         }
-        for (var i = 0; i < 16; i++) {
+        for (var i = 0; i < 16; i++) {//Normalisation of both the array
             datac[i] = (datac[i] * 100) / data.length;
             datap[i] = (datap[i] * 100) / data.length;
         }
+        //Intilialisting the Two empty array
         var xs=[];
         var pq=[];
+        //Defining the Size of pq and xs to be equal to Rounds and putting the value 0 and Round Number Reqpectively
         for(var i=0;i<Rounds;i++)
         {
 	        xs.push(i+1);
 	        pq.push(0);
         } 
+        //Stroing the total difference between the two given plaintext(in bit) at any jth round in the pq array
         for(var j=0;j<Rounds;j++)
 	    {
 		    for(var k=0;k<(data.length*4);k++)
@@ -561,7 +572,7 @@ $(document).ready(function () {
             y: pq,
             type: 'scatter'
         };
-
+        //Plotting the Value of pq array at the each round known as Avalanche Graph
         var da = [Plaintext];
         var layout = {
             title: "Avalanche effect",
@@ -573,7 +584,7 @@ $(document).ready(function () {
             }
         };
         Plotly.newPlot('myDiv', da, layout);
-
+        //Plotting the Value of datap array and datac array to see the difference between the Encrypted and plaintext on first 16bit
         var chart = new CanvasJS.Chart("chartcontainer",
             {
                 title: {
